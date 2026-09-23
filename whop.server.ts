@@ -183,7 +183,18 @@ async function getWhopUser(
   }
 }
 
-async function hasWhopProductAccess(
+/**
+ * Vérifie si un utilisateur possède un abonnement
+ * actif au produit Smart Point.
+ *
+ * IMPORTANT :
+ * Cette fonction n'est PAS utilisée pour bloquer
+ * l'accès à l'interface publique.
+ *
+ * Elle est destinée aux actions protégées comme
+ * le téléchargement des fichiers.
+ */
+export async function hasWhopProductAccess(
   userId: string,
   apiKey: string,
 ): Promise<boolean> {
@@ -281,7 +292,18 @@ export async function resolveWhopIdentity(): Promise<WhopIdentity | null> {
    * 2. UTILISATEUR WHOP NORMAL
    * ============================================================
    *
-   * Ici, le fonctionnement reste strictement celui de Whop.
+   * Ici, Whop sert uniquement à identifier l'utilisateur.
+   *
+   * L'abonnement n'est PAS vérifié ici.
+   *
+   * Cela permet :
+   * - accès public au catalogue
+   * - accès public aux aperçus
+   * - consultation sans abonnement
+   *
+   * La vérification de l'abonnement doit être effectuée
+   * uniquement lorsqu'une action protégée est demandée,
+   * notamment le téléchargement.
    */
   const token =
     getRequestHeader(
@@ -355,24 +377,21 @@ export async function resolveWhopIdentity(): Promise<WhopIdentity | null> {
     return null;
   }
 
-  const hasAccess =
-    await hasWhopProductAccess(
-      user.id,
-      apiKey,
-    );
-
-  if (!hasAccess) {
-    console.error(
-      `[Smart Point] User ${user.id} does not have access to product ${WHOP_PRODUCT_ID}.`,
-    );
-
-    return null;
-  }
-
+  /**
+   * IMPORTANT :
+   * Aucun contrôle de membership ici.
+   *
+   * Tout utilisateur Whop authentifié peut donc
+   * consulter l'application.
+   *
+   * Le contrôle d'abonnement reste disponible via
+   * hasWhopProductAccess() pour les téléchargements.
+   */
   return {
     id: user.id,
     name: user.name,
-    plan: "Premium Member",
+    plan: "Whop User",
     isAdmin: false,
   };
 }
+
