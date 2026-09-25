@@ -110,6 +110,7 @@ export const Route = createFileRoute("/")({
  * If your video has another filename, change only this
  * constant.
  */
+
 const HERO_VIDEO_SRC =
   "/assets/smart-point-hero.mp4";
 
@@ -418,6 +419,34 @@ async function downloadTemplate(
           },
         },
       );
+
+    /*
+     * External visitor:
+     *
+     * /api/download returns JSON telling the frontend
+     * to open the Whop checkout.
+     */
+    if (
+      response.status === 401
+    ) {
+      try {
+        const data =
+          await response.json();
+
+        if (
+          data?.requires_checkout &&
+          typeof data.checkout_url ===
+            "string"
+        ) {
+          window.location.href =
+            data.checkout_url;
+
+          return;
+        }
+      } catch {
+        // Continue with normal error handling.
+      }
+    }
 
     if (!response.ok) {
       let message =
@@ -795,12 +824,19 @@ function HomePage() {
       }),
     );
 
+  /*
+   * IMPORTANT:
+   *
+   * External visitors must not query favorites.
+   */
   const favorites =
-    useQuery(
-      favoritesQuery(
+    useQuery({
+      ...favoritesQuery(
         user.id,
       ),
-    );
+      enabled:
+        user.isAuthenticated,
+    });
 
 
   /* -------------------------------------------------------
@@ -926,6 +962,24 @@ function HomePage() {
   async function handleToggleFavorite(
     template: Template,
   ) {
+    /*
+     * EXTERNAL VISITOR
+     *
+     * Never access or modify Supabase favorites.
+     */
+    if (
+      !user.isAuthenticated
+    ) {
+      toast.info(
+        "Abonnez-vous à Smart Point pour ajouter des templates à vos favoris.",
+        {
+          duration: 4000,
+        },
+      );
+
+      return;
+    }
+
     const templateId =
       template.id ??
       template.template_id;
@@ -1040,9 +1094,9 @@ function HomePage() {
   return (
     <div className="space-y-8 p-4 lg:p-6">
 
-      {/* ===================================================
+      {/* =================================================
           HERO
-          =================================================== */}
+          ================================================= */}
 
       <section
         className="
@@ -1198,9 +1252,9 @@ function HomePage() {
       </section>
 
 
-      {/* ===================================================
+      {/* =================================================
           CATEGORIES
-          =================================================== */}
+          ================================================= */}
 
       <section>
 
@@ -1326,9 +1380,9 @@ function HomePage() {
       </section>
 
 
-      {/* ===================================================
+      {/* =================================================
           TEMPLATE HEADER
-          =================================================== */}
+          ================================================= */}
 
       <section>
 
@@ -1573,17 +1627,30 @@ function HomePage() {
                         template={
                           template
                         }
-                        isFavorite={favoriteIds.has(
-                          String(
-                            templateId,
-                          ),
-                        )}
+
+                        /*
+                         * External visitors have no
+                         * favorites loaded, therefore
+                         * every heart is displayed as
+                         * not selected.
+                         */
+                        isFavorite={
+                          user.isAuthenticated &&
+                          favoriteIds.has(
+                            String(
+                              templateId,
+                            ),
+                          )
+                        }
+
                         onToggleFavorite={
                           handleToggleFavorite
                         }
+
                         onPreview={
                           setPreview
                         }
+
                         onDownload={(
                           item,
                           format,
@@ -1613,9 +1680,9 @@ function HomePage() {
       </section>
 
 
-      {/* ===================================================
+      {/* =================================================
           PREVIEW DIALOG
-          =================================================== */}
+          ================================================= */}
 
       <PreviewDialog
         template={
